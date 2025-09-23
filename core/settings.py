@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-)i^kgz81m+5b&kwqf6dx#l@e0_uoej_0ft(##uh(z(4aa=-q91
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*", "localhost", "127.0.0.1"]
 
 # AUTH_USER_MODEL = "Users.Employee"
 
@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'permissions',
     'material_api',
+    'channels',
 ]
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
@@ -64,6 +65,12 @@ REST_FRAMEWORK = {
     ),
 }
 
+# For development, use in-memory channel layer to avoid Redis dependency
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    }
+}
 
 MIDDLEWARE = [
     # 🔹 MUST be first (before CommonMiddleware)
@@ -98,6 +105,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'core.wsgi.application'
+ASGI_APPLICATION = 'core.asgi.application'
 
 
 # Database
@@ -123,13 +131,15 @@ SIMPLE_JWT = {
 
 # settings.py
 # Email configuration
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = "smtp.gmail.com"          # or your provider (e.g. Outlook, SendGrid, AWS SES)
+# email_settings.py
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'mail.meghaeng.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = "bheam7032@gmail.com"   # 👈 sender email
-EMAIL_HOST_PASSWORD = "ebkw fntx nbii otbc"    # 👈 app password or SMTP key
+EMAIL_HOST_USER = "mdgtadmin@meghaeng.com"
+EMAIL_HOST_PASSWORD = "8PR*WnKRuuX9m!"
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
 
 # settings.py
 # SMS configuration

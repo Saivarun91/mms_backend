@@ -11,7 +11,7 @@ class Employee(models.Model):
     password = models.CharField(max_length=255)
     
     phone_number = models.CharField(max_length=15, null=True, blank=True)  
-
+    designation = models.CharField(max_length=30, null=True, blank=True)
     company_name = models.ForeignKey(
         "Company.Company",
         on_delete=models.CASCADE,
@@ -50,9 +50,9 @@ class Employee(models.Model):
     is_email_verified = models.BooleanField(default=False)
 
     # 🔹 Phone OTP fields
-    phone_otp = models.CharField(max_length=6, null=True, blank=True)
-    phone_otp_created = models.DateTimeField(null=True, blank=True)
-    is_phone_verified = models.BooleanField(default=False)
+    # phone_otp = models.CharField(max_length=6, null=True, blank=True)
+    # phone_otp_created = models.DateTimeField(null=True, blank=True)
+    # is_phone_verified = models.BooleanField(default=False)
 
 
     class Meta:

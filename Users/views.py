@@ -202,7 +202,7 @@ def userrole_delete(request, pk):
 
 @csrf_exempt
 @authenticate
-@restrict(roles=['Admin', 'SuperAdmin'])
+# @restrict(roles=['Admin', 'SuperAdmin'])
 def userrole_permissions(request, role_name):
     if request.method == 'GET':
         try:

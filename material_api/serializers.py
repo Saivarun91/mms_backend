@@ -7,7 +7,7 @@ from itemmaster.models import ItemMaster
 class MatGroupSerializer(serializers.ModelSerializer):
     class Meta:
         model = MatGroup
-        fields = ["mgrp_code", "mgrp_shortname", "mgrp_longname","notes"]
+        fields = ["mgrp_code","notes"]
 
 
 class MaterialTypeSerializer(serializers.ModelSerializer):

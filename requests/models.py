@@ -17,8 +17,8 @@ class Request(models.Model):
     request_date = models.DateTimeField(default=timezone.now)
     request_status = models.CharField(
         max_length=10, choices=STATUS_CHOICES, default="open")
-    user_text = models.JSONField(max_length=200, null=True, blank=True)
-    reply_text = models.JSONField(max_length=200, null=True, blank=True)
+    messages = models.JSONField(max_length=200, null=True, blank=True)
+    request_data = models.JSONField(null=True, blank=True, default=dict)
     reply_emaildate = models.DateTimeField(null=True, blank=True)
     reply_smsdate = models.DateTimeField(null=True, blank=True)
     sap_item = models.ForeignKey(

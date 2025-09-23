@@ -30,7 +30,8 @@ def create_request(request):
         try:
             data = json.loads(request.body.decode("utf-8"))
 
-            project_code = data.get("project_id")
+            project_code = data.get("project_code")
+            print(project_code)
             notes = data.get("notes", "")
 
             if not project_code:
@@ -93,8 +94,8 @@ def list_requests(request):
                     "project_code": r.project_code.project_code if r.project_code else None,
                     "project_name": r.project_code.project_name if r.project_code else None,
 
-                    "user_text": r.user_text,
-                    "reply_text": r.reply_text,
+                    "user_text": r.request_data ,
+                  
                     "sap_item": r.sap_item.sap_item_id if r.sap_item else None,
                     "notes": r.notes,
                     "closetime": r.closetime.strftime("%Y-%m-%d") if r.closetime else None,
@@ -130,8 +131,7 @@ def update_request(request, request_id):
             data = json.loads(request.body.decode("utf-8"))
 
             # Update fields if provided
-            req_obj.user_text = data.get("user_text", req_obj.user_text)
-            req_obj.reply_text = data.get("reply_text", req_obj.reply_text)
+            
             req_obj.notes = data.get("notes", req_obj.notes)
             closetime_str = data.get("closetime")
             if closetime_str:
@@ -171,8 +171,7 @@ def update_request(request, request_id):
             response_data = {
                 "request_id": req_obj.request_id,
                 "request_status": req_obj.request_status,
-                "user_text": req_obj.user_text,
-                "reply_text": req_obj.reply_text,
+                
                 "sap_item": req_obj.sap_item.sap_item_id if req_obj.sap_item else None,
                 "notes": req_obj.notes,
                 "closetime": req_obj.closetime.strftime("%Y-%m-%d") if req_obj.closetime else None,
@@ -261,6 +260,96 @@ def assign_sap_item(request, request_id):
 
         except json.JSONDecodeError:
             return JsonResponse({"error": "Invalid JSON data"}, status=400)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({"error": "Invalid request method"}, status=405)
+
+
+@csrf_exempt
+@authenticate
+@restrict(roles=["Admin", "SuperAdmin", "MDGT", "Employee"])
+def add_chat_message(request, request_id):
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid request method"}, status=405)
+
+    try:
+        data = json.loads(request.body.decode("utf-8"))
+        message_text = data.get("message")
+        if not message_text:
+            return JsonResponse({"error": "message is required"}, status=400)
+
+        req_obj = Request.objects.filter(request_id=request_id, is_deleted=False).first()
+        if not req_obj:
+            return JsonResponse({"error": "Request not found"}, status=404)
+
+        emp_id = request.user.get("emp_id")
+        employee = Employee.objects.filter(emp_id=emp_id).first()
+        if not employee:
+            return JsonResponse({"error": "Employee not found"}, status=404)
+
+        # Ensure request_data is a dict
+        if not isinstance(req_obj.request_data, dict):
+            req_obj.request_data = {}
+
+        # Ensure 'chat' key is a list
+        if "chat" not in req_obj.request_data or not isinstance(req_obj.request_data.get("chat"), list):
+            req_obj.request_data["chat"] = []
+
+        # Append new chat message
+        req_obj.request_data["chat"].append({
+            "sender": employee.emp_name,
+            "message": message_text,
+            "timestamp": timezone.now().strftime("%Y-%m-%d %H:%M:%S")
+        })
+
+        # Save JSONB
+        req_obj.updatedby = employee
+        req_obj.updated = timezone.now()
+        req_obj.save()
+
+        # Broadcast to WebSocket group for this request
+        try:
+            from asgiref.sync import async_to_sync
+            from channels.layers import get_channel_layer
+            channel_layer = get_channel_layer()
+            group_name = f"chat_{request_id}"
+            async_to_sync(channel_layer.group_send)(
+                group_name,
+                {
+                    "type": "chat.message",  # maps to ChatConsumer.chat_message
+                    "message": {
+                        "sender": employee.emp_name,
+                        "message": message_text,
+                        "timestamp": timezone.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    },
+                },
+            )
+        except Exception:
+            # Fallback silently if WS not configured
+            pass
+
+        return JsonResponse({"message": "Chat message added successfully", "request_data": req_obj.request_data}, status=201)
+
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+    except Exception as e:
+        print("Error in add_chat_message:", e)
+        return JsonResponse({"error": str(e)}, status=500)
+
+@authenticate
+@restrict(roles=["Admin", "SuperAdmin", "MDGT", "Employee"])
+def list_chat_messages(request, request_id):
+    if request.method == "GET":
+        try:
+            req_obj = Request.objects.filter(request_id=request_id, is_deleted=False).first()
+            if not req_obj:
+                return JsonResponse({"error": "Request not found"}, status=404)
+
+            chat_messages = req_obj.request_data.get("chat", []) if req_obj.request_data else []
+
+            return JsonResponse(chat_messages, safe=False, status=200)
+
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=500)
 

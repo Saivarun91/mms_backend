@@ -45,7 +45,8 @@ def register(request):
         company_name = data.get("company_name")
         description = data.get("description")
         role_name = data.get("role")  # passed from frontend
-        phone_number = data.get("phone_number")  # 👈 new field from frontend
+        phone_number = data.get("ph_number")  # 👈 new field from frontend
+        designation = data.get("designation")
 
         # ✅ Basic validations
         if not email or not password:
@@ -94,8 +95,8 @@ def register(request):
             password=make_password(password),
             company_name=company,
             role=role,
+            designation=designation,
             is_email_verified=False,
-            is_phone_verified=False,
             createdby=creator_emp if creator_emp else None,
             updatedby=creator_emp if creator_emp else None,
         )
@@ -107,11 +108,11 @@ def register(request):
             employee.save()
         
         email_otp = generate_otp()
-        phone_otp = generate_otp()
+        # phone_otp = generate_otp()
         employee.email_otp = email_otp
         employee.email_otp_created = datetime.datetime.now()
-        employee.phone_otp = phone_otp
-        employee.phone_otp_created = datetime.datetime.now()
+        # employee.phone_otp = phone_otp
+        # employee.phone_otp_created = datetime.datetime.now()
         employee.save()
         # ✅ Send OTPs (async recommended in production)
         send_email_otp(employee.email,email_otp)
@@ -128,7 +129,7 @@ def register(request):
             "role": employee.role.role_name if employee.role else None,
             "description": employee.description,
             "is_email_verified": employee.is_email_verified,
-            "is_phone_verified": employee.is_phone_verified,
+            # "is_phone_verified": employee.is_phone_verified,
         }, status=201)
 
     except json.JSONDecodeError:
@@ -160,10 +161,13 @@ def login(request):
         return JsonResponse({
             "message": "Login successful",
             "token": token,
-            "role": employee.role.role_name if employee.role else None,
+            "emp_id": employee.emp_id,
             "emp_name": employee.emp_name if employee.emp_name else None,
-            "email": employee.email if employee.email else None
-        }, status=200)
+            "email": employee.email if employee.email else None,
+            "company_name": employee.company_name.company_name if employee.company_name else None,
+            "role": employee.role.role_name if employee.role else None,
+            "designation": employee.designation if employee.designation else None,
+      },status=200)
 
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON"}, status=400)
@@ -173,6 +177,7 @@ def verify_email_otp(request):
     data = json.loads(request.body)
     email = data.get("email")
     otp = data.get("otp")
+    print(email, otp)
 
     employee = Employee.objects.filter(email=email, is_deleted=False).first()
     if not employee:
