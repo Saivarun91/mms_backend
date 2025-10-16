@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     'permissions',
     'material_api',
     'channels',
+    'notifications'
 ]
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (

@@ -85,6 +85,16 @@ def list_requests(request):
     if request.method == "GET":
         try:
             requests_qs = Request.objects.filter(is_deleted=False)
+            # Employees see only their own requests; MDGT/Admin/SuperAdmin see all
+            try:
+                user_role = request.user.get("role") if isinstance(request.user, dict) else None
+                if user_role == "Employee":
+                    emp_id = request.user.get("emp_id")
+                    employee = Employee.objects.filter(emp_id=emp_id).first()
+                    if employee:
+                        requests_qs = requests_qs.filter(createdby=employee)
+            except Exception:
+                pass
             response_data = []
             for r in requests_qs:
                 response_data.append({
@@ -149,7 +159,18 @@ def update_request(request, request_id):
                 except ItemMaster.DoesNotExist:
                     return JsonResponse({"error": f"ItemMaster with sap_item_id={sap_item_value} not found"}, status=404)
 
-            req_obj.status = data.get("status", req_obj.status)
+            # Validate closing rules for MDGT: cannot close without SAP item
+            requested_status = data.get("status", req_obj.status)
+            try:
+                user_role = request.user.get("role") if isinstance(request.user, dict) else None
+                if requested_status == "Closed" and user_role == "MDGT":
+                    sap_item_in_payload = data.get("sap_item")
+                    if not (req_obj.sap_item or sap_item_in_payload):
+                        return JsonResponse({"error": "SAP Item is required to close this request"}, status=400)
+            except Exception:
+                pass
+
+            req_obj.status = requested_status
             req_obj.timetaken = data.get("timetaken", req_obj.timetaken)
             req_obj.request_status = data.get(
                 "request_status", req_obj.request_status)
@@ -238,7 +259,7 @@ def assign_sap_item(request, request_id):
                 return JsonResponse({"error": f"ItemMaster with sap_item_id={sap_item_value} not found"}, status=404)
 
             req_obj.sap_item = sap_item_obj
-            req_obj.request_status = "closed"  # optional: auto-close after assignment
+            req_obj.status = "closed"  # optional: auto-close after assignment
             req_obj.updated = timezone.now()
 
             # ✅ Update audit

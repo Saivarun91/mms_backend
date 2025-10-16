@@ -263,26 +263,33 @@ def update_employee(request, emp_id):
         company_name = data.get("company_name")
         emp_name = data.get("emp_name")
 
+        # 🔹 Update email and password
         if email:
             employee.email = email
         if password:
             employee.password = make_password(password)
+
+        # 🔹 Safely update role (handle duplicates)
         if role_name:
-            try:
-                role = UserRole.objects.get(role_name=role_name)
-                employee.role = role
-            except UserRole.DoesNotExist:
+            role = UserRole.objects.filter(role_name=role_name).first()
+            if not role:
                 return JsonResponse({"error": "Role not found"}, status=404)
+            employee.role = role
+
+        # 🔹 Update company (except for SuperAdmin)
         if company_name and (not employee.role or employee.role.role_name.lower() != "superadmin"):
-            try:
-                company = Company.objects.get(company_name=company_name)
-                employee.company_name = company
-            except Company.DoesNotExist:
+            company = Company.objects.filter(company_name=company_name).first()
+            if not company:
                 return JsonResponse({"error": "Company not found"}, status=404)
+            employee.company_name = company
+
+        # 🔹 Track who updated the employee
         updater = None
         if hasattr(request, "user") and request.user.get("emp_id"):
             updater = Employee.objects.filter(
-                emp_id=request.user["emp_id"], is_deleted=False).first()
+                emp_id=request.user["emp_id"], is_deleted=False
+            ).first()
+
         employee.updated = datetime.datetime.now()
         employee.emp_name = emp_name
         if updater:
@@ -300,6 +307,7 @@ def update_employee(request, emp_id):
 
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON"}, status=400)
+
 
 
 # 🔹 Delete Employee (Admin/SuperAdmin only)

@@ -31,10 +31,10 @@ class Request(models.Model):
     # Audit fields
     created = models.DateTimeField(auto_now_add=True)
     createdby = models.ForeignKey(
-        Employee, related_name="requests_created", on_delete=models.CASCADE, null=True, blank=True)
+        "Employee.Employee", related_name="requests_created", on_delete=models.CASCADE, null=True, blank=True)
     updated = models.DateTimeField(auto_now=True)
     updatedby = models.ForeignKey(
-        Employee, related_name="requests_updated", on_delete=models.CASCADE, null=True, blank=True)
+       "Employee.Employee", related_name="requests_updated", on_delete=models.CASCADE, null=True, blank=True)
     is_deleted = models.BooleanField(default=False)
 
     def __str__(self):
