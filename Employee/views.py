@@ -61,7 +61,7 @@ def register(request):
                 {"error": f"Email domain '{domain}' is not allowed"}, status=400
             )
 
-        # ✅ Check duplicate email
+        # ✅ Check duplicate email among active users only
         if Employee.objects.filter(email=email, is_deleted=False).exists():
             return JsonResponse({"error": "Email already exists"}, status=400)
 
@@ -243,6 +243,7 @@ def list_employees(request):
 
 
 # 🔹 Update Employee (Admin only)
+# 🔹 Update Employee (Admin only)
 @csrf_exempt
 @authenticate
 @restrict(roles=['Admin'])
@@ -307,7 +308,6 @@ def update_employee(request, emp_id):
 
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON"}, status=400)
-
 
 
 # 🔹 Delete Employee (Admin/SuperAdmin only)

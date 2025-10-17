@@ -7,7 +7,7 @@ class Employee(models.Model):
     emp_name = models.CharField(
         max_length=255, null=False, blank=False, default="Unknown")
     email = models.EmailField(
-        unique=True, max_length=100, null=False, blank=False)
+        max_length=100, null=False, blank=False)
     password = models.CharField(max_length=255)
     
     phone_number = models.CharField(max_length=15, null=True, blank=True)  
