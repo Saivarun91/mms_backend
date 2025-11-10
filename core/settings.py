@@ -58,7 +58,9 @@ INSTALLED_APPS = [
     'permissions',
     'material_api',
     'channels',
-    'notifications'
+    'notifications',
+    'uploads',
+
 ]
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
@@ -117,7 +119,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'meil',
         'USER': 'postgres',
-        'PASSWORD': 'Saivarun1234',
+        'PASSWORD': 'Srinivas@2003',
         'HOST': 'localhost',
         'PORT': '5432',
     }
@@ -148,7 +150,6 @@ MSG91_AUTH_KEY = "your_auth_key_here"
 MSG91_SENDER_ID = "MSG91"
 MSG91_TEMPLATE_ID = "68ca5778bf32b21ab6415c74"   # if DLT enabled
 MSG91_ROUTE = "4"  # 4 = transactional, 1 = promotional
-
 
 
 AUTH_PASSWORD_VALIDATORS = [

@@ -6,6 +6,7 @@ from django.conf import settings
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.hashers import make_password, check_password
+from django.core.mail import send_mail
 
 from .models import Employee
 from Approvals.models import SignupRequest
@@ -216,6 +217,118 @@ def verify_phone_otp(request):
     return JsonResponse({"message": "Phone verified successfully"}, status=200)
 
 
+# 🔹 Forgot Password - Request OTP
+@csrf_exempt
+def request_password_reset(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid request method"}, status=405)
+
+    try:
+        data = json.loads(request.body)
+        email = data.get("email")
+
+        if not email:
+            return JsonResponse({"error": "Email is required"}, status=400)
+
+        employee = Employee.objects.filter(email=email, is_deleted=False).first()
+        if not employee:
+            # Don't reveal if email exists or not for security
+            return JsonResponse({"message": "If the email exists, an OTP has been sent"}, status=200)
+
+        # Generate and save OTP
+        email_otp = generate_otp()
+        employee.email_otp = email_otp
+        employee.email_otp_created = datetime.datetime.now()
+        employee.save()
+
+        # Send OTP via email
+        send_email_otp(employee.email, email_otp)
+
+        return JsonResponse({"message": "OTP sent to your email"}, status=200)
+
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+# 🔹 Forgot Password - Verify OTP
+@csrf_exempt
+def verify_password_reset_otp(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid request method"}, status=405)
+
+    try:
+        data = json.loads(request.body)
+        email = data.get("email")
+        otp = data.get("otp")
+
+        if not email or not otp:
+            return JsonResponse({"error": "Email and OTP are required"}, status=400)
+
+        employee = Employee.objects.filter(email=email, is_deleted=False).first()
+        if not employee:
+            return JsonResponse({"error": "User not found"}, status=404)
+
+        if not employee.email_otp or otp != employee.email_otp:
+            return JsonResponse({"error": "Invalid OTP"}, status=400)
+
+        if otp_expired(employee.email_otp_created):
+            return JsonResponse({"error": "OTP has expired"}, status=400)
+
+        # OTP verified successfully - allow password reset
+        return JsonResponse({"message": "OTP verified successfully"}, status=200)
+
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+# 🔹 Forgot Password - Reset Password
+@csrf_exempt
+def reset_password(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid request method"}, status=405)
+
+    try:
+        data = json.loads(request.body)
+        email = data.get("email")
+        otp = data.get("otp")
+        new_password = data.get("new_password")
+        confirm_password = data.get("confirm_password")
+
+        if not email or not otp or not new_password or not confirm_password:
+            return JsonResponse({"error": "All fields are required"}, status=400)
+
+        if new_password != confirm_password:
+            return JsonResponse({"error": "Passwords do not match"}, status=400)
+
+        employee = Employee.objects.filter(email=email, is_deleted=False).first()
+        if not employee:
+            return JsonResponse({"error": "User not found"}, status=404)
+
+        # Verify OTP again before resetting
+        if not employee.email_otp or otp != employee.email_otp:
+            return JsonResponse({"error": "Invalid OTP"}, status=400)
+
+        if otp_expired(employee.email_otp_created):
+            return JsonResponse({"error": "OTP has expired"}, status=400)
+
+        # Reset password
+        employee.password = make_password(new_password)
+        employee.email_otp = None  # Clear OTP after use
+        employee.email_otp_created = None
+        employee.save()
+
+        return JsonResponse({"message": "Password reset successfully"}, status=200)
+
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
 # 🔹 List all Employees (Admin/SuperAdmin only)
 @csrf_exempt
 @authenticate
@@ -309,6 +422,52 @@ def update_employee(request, emp_id):
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
+
+# 🔹 Send Registration Invite (Admin/SuperAdmin only)
+@csrf_exempt
+@authenticate
+@restrict(roles=['Admin', 'SuperAdmin'])
+def send_registration_invite(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid request method"}, status=405)
+
+    try:
+        data = json.loads(request.body)
+        email = data.get("email")
+        if not email:
+            return JsonResponse({"error": "Email is required"}, status=400)
+
+        # If already an active employee, do not send invite
+        if Employee.objects.filter(email=email, is_deleted=False).exists():
+            return JsonResponse({"error": "Email already registered"}, status=400)
+
+        # Build registration URL (fallback to localhost if not provided)
+        frontend_base = getattr(settings, 'FRONTEND_BASE_URL', None)
+        if not frontend_base:
+            frontend_base = "http://localhost:3000"
+        registration_link = f"{frontend_base}/signup?email={email}"
+
+        subject = "Complete your registration"
+        message = (
+            "You have been invited to register your account.\n\n"
+            f"Please click the link below to complete your registration:\n{registration_link}\n\n"
+            "If you did not expect this email, you can ignore it."
+        )
+
+        send_mail(
+            subject,
+            message,
+            settings.DEFAULT_FROM_EMAIL,
+            [email],
+            fail_silently=False,
+        )
+
+        return JsonResponse({"message": "Registration link sent"}, status=200)
+
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
 
 # 🔹 Delete Employee (Admin/SuperAdmin only)
 @csrf_exempt

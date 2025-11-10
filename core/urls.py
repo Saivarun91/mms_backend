@@ -39,4 +39,5 @@ urlpatterns = [
     path('permissions/', include('permissions.urls')),
     path('validationlists/', include('validationlists.urls')),
     path("api/", include("material_api.urls")),
+    path('uploads/', include('uploads.urls')),
 ]

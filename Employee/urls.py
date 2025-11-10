@@ -16,4 +16,9 @@ urlpatterns = [
          name='employee-assign-role'),
     path('bulk-assign-role/', views.bulk_assign_roles,
          name='employee-bulk-assign-role'),  # 👈 New
+    path('send-invite/', views.send_registration_invite, name='employee-send-invite'),
+    # Password reset endpoints
+    path('forgot-password/', views.request_password_reset, name='request-password-reset'),
+    path('verify-password-reset-otp/', views.verify_password_reset_otp, name='verify-password-reset-otp'),
+    path('reset-password/', views.reset_password, name='reset-password'),
 ]
